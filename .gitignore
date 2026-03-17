@@ -1,0 +1,6 @@
+build/
+cmake-build-debug-mingw/
+managed_components/
+main/.idea/
+dependencies.lock
+sdkconfig.old
