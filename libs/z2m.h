@@ -6,7 +6,14 @@
 #define Z2M_H
 #include "esp_zigbee_core.h"
 #include "esp_check.h"
-#define HA_ESP_SENSOR_ENDPOINT          10
+
+#define EP_TEMPSENSOR_1 1
+#define EP_TEMPSENSOR_2 2
+#define EP_TEMPSENSOR_3 3
+#define EP_TEMPSENSOR_4 4
+#define CUSTOM_CLUSTER_ID 0xff00
+#define CUSTOM_COMMAND_RESP 0x0001
+#define HA_ESP_SENSOR_ENDPOINT 1
 
 
 void register_device();

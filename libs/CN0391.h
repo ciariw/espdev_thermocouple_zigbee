@@ -85,7 +85,7 @@ void CN0391_set_power_mode(int mode);
 
 void CN0391_set_data(void);
 void CN0391_display_data(void);
-
+void get_temp_Data(int16_t* buff);
 
 #define YES    1
 #define NO     0
