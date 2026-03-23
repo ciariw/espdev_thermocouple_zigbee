@@ -128,15 +128,17 @@ void esp_task_get_Temp_data_loop()
 {
     while(true)
     {
-        vTaskDelay(3000 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
         CN0391_set_data();
         get_temp_Data(temperaturebuffer);
-
-        //printf("\n TemperatureBufferData: %d",temperaturebuffer[0]);
-        //CN0391_display_data();
-        //printf(" \n\n\n\n ");
+        update_tc_attr(0x0000, temperaturebuffer[0]);
+        update_tc_attr(0x0001, temperaturebuffer[1]);
+        update_tc_attr(0x0002, temperaturebuffer[2]);
+        update_tc_attr(0x0003, temperaturebuffer[3]);
     }
+
 }
+
 void esp_task_SPI_init()
 {
     spi_device_handle_t spidev;
@@ -162,10 +164,11 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
             ESP_LOGI(TAG, "Device started up in%s factory-reset mode", esp_zb_bdb_is_factory_new() ? "" : " non");
             if (esp_zb_bdb_is_factory_new()) {
                 ESP_LOGI(TAG, "Start network formation");
-                esp_zb_bdb_start_top_level_commissioning(ESP_ZB_BDB_MODE_NETWORK_FORMATION);
+                esp_zb_bdb_start_top_level_commissioning(ESP_ZB_BDB_NETWORK_STEERING);
             } else {
-                esp_zb_bdb_open_network(180);
+                //esp_zb_bdb_open_network(180);
                 ESP_LOGI(TAG, "Device rebooted");
+
             }
         } else {
             ESP_LOGW(TAG, "%s failed with status: %s, retrying", esp_zb_zdo_signal_to_string(sig_type),
@@ -185,7 +188,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
             esp_zb_bdb_start_top_level_commissioning(ESP_ZB_BDB_MODE_NETWORK_STEERING);
         } else {
             ESP_LOGI(TAG, "Restart network formation (status: %s)", esp_err_to_name(err_status));
-            esp_zb_scheduler_alarm((esp_zb_callback_t)bdb_start_top_level_commissioning_cb, ESP_ZB_BDB_MODE_NETWORK_FORMATION, 1000);
+            esp_zb_scheduler_alarm((esp_zb_callback_t)bdb_start_top_level_commissioning_cb, ESP_ZB_BDB_NETWORK_STEERING, 1000);
         }
         break;
     case ESP_ZB_BDB_SIGNAL_STEERING:
@@ -220,6 +223,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
 
 void app_main(void)
 {
+    //esp_zb_nvram_erase_at_start(true);
     TaskHandle_t xSpi_handle = NULL;
     ESP_ERROR_CHECK(nvs_flash_init());
     print_chip_info();

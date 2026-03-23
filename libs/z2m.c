@@ -10,14 +10,31 @@
 
 
 char isactive[40];
-int16_t temperaturebuffer[4] = {1000,1000,1000,1000};
-esp_zb_ep_list_t *esp_zb_ep_list;
+int16_t temperaturebuffer[4] = {1300,1670,1020,1111};
+
 typedef struct zbstring_s {
     uint8_t len;
     char data[];
 } ESP_ZB_PACKED_STRUCT
 zbstring_t;
 
+static void update_tc_attr(uint16_t attr_id, int16_t value)
+{
+    esp_zb_lock_acquire(portMAX_DELAY);
+
+    esp_zb_zcl_status_t st = esp_zb_zcl_set_attribute_val(
+        10,                              // endpoint
+        CUSTOM_CLUSTER_ID,               // 0xFF00
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        attr_id,                         // 0x0000..0x0003
+        &value,
+        false
+    );
+
+    esp_zb_lock_release();
+
+    //ESP_LOGI("ZB", "set attr 0x%04X = %d status=%d", attr_id, value, st);
+}
 
 static void esp_app_temp_sensor_handler()
 {
@@ -46,7 +63,32 @@ static void esp_app_temp_sensor_handler()
         */
     esp_zb_lock_release();
 }
+static void configure_local_reporting_for_attr(uint16_t attr_id)
+{
+    static int16_t change = 1;
 
+    esp_zb_zcl_config_report_record_t rec = {
+        .direction = ESP_ZB_ZCL_REPORT_DIRECTION_SEND,
+        .attributeID = attr_id,
+        .attrType = ESP_ZB_ZCL_ATTR_TYPE_S16,
+        .min_interval = 10,
+        .max_interval = 3600,
+        .reportable_change = &change,
+    };
+
+    esp_zb_zcl_config_report_cmd_t cmd = {0};
+    cmd.zcl_basic_cmd.src_endpoint = 10;
+    cmd.zcl_basic_cmd.dst_endpoint = 10;
+    cmd.zcl_basic_cmd.dst_addr_u.addr_short = esp_zb_get_short_address();
+    cmd.address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
+    cmd.clusterID = CUSTOM_CLUSTER_ID;
+    cmd.record_number = 1;
+    cmd.record_field = &rec;
+
+    esp_zb_lock_acquire(portMAX_DELAY);
+    esp_zb_zcl_config_report_cmd_req(&cmd);
+    esp_zb_lock_release();
+}
 
 esp_err_t zb_attribute_handler(const esp_zb_zcl_set_attr_value_message_t *message)
 {
@@ -61,6 +103,28 @@ esp_err_t zb_attribute_handler(const esp_zb_zcl_set_attr_value_message_t *messag
     return ret;
 }
 
+static void add_reporting_slot(uint8_t ep, uint16_t cluster_id, uint16_t attr_id)
+{
+    esp_zb_zcl_reporting_info_t ri = {0};
+
+    ri.direction = ESP_ZB_ZCL_CMD_DIRECTION_TO_SRV;
+    ri.ep = ep;
+    ri.cluster_id = cluster_id;
+    ri.cluster_role = ESP_ZB_ZCL_CLUSTER_SERVER_ROLE;
+    ri.attr_id = attr_id;
+    ri.manuf_code = ESP_ZB_ZCL_ATTR_NON_MANUFACTURER_SPECIFIC;
+    ri.dst.profile_id = ESP_ZB_AF_HA_PROFILE_ID;
+
+    ri.u.send_info.min_interval = 10;
+    ri.u.send_info.max_interval = 3600;
+    ri.u.send_info.def_min_interval = 10;
+    ri.u.send_info.def_max_interval = 3600;
+    ri.u.send_info.delta.s16 = 1;
+    ri.u.send_info.reported_value.s16 = 0;
+
+    esp_err_t err = esp_zb_zcl_update_reporting_info(&ri);
+    ESP_LOGI("ZB", "add report slot attr 0x%04X -> %s", attr_id, esp_err_to_name(err));
+}
 
 static void esp_app_zb_attribute_handler(uint16_t cluster_id, const esp_zb_zcl_attribute_t* attribute)
 {
@@ -173,6 +237,37 @@ static esp_err_t zb_read_attr_resp_handler(const esp_zb_zcl_cmd_read_attr_resp_m
     return ESP_OK;
 }
 
+static void dump_reporting_info(uint8_t ep, uint16_t cluster_id, uint16_t attr_id)
+{
+    esp_zb_zcl_attr_location_info_t attr_info = {
+        .endpoint_id = ep,
+        .cluster_id = cluster_id,
+        .cluster_role = ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        .attr_id = attr_id,
+        .manuf_code = ESP_ZB_ZCL_ATTR_NON_MANUFACTURER_SPECIFIC,
+    };
+
+    esp_zb_lock_acquire(portMAX_DELAY);
+    esp_zb_zcl_reporting_info_t *found = esp_zb_zcl_find_reporting_info(attr_info);
+    esp_zb_lock_release();
+
+    if (found) {
+        ESP_LOGI("ZB",
+                 "report slot exists ep=%u cluster=0x%04X attr=0x%04X min=%u max=%u",
+                 ep,
+                 cluster_id,
+                 attr_id,
+                 found->u.send_info.min_interval,
+                 found->u.send_info.max_interval);
+    } else {
+        ESP_LOGW("ZB",
+                 "no report slot for ep=%u cluster=0x%04X attr=0x%04X",
+                 ep,
+                 cluster_id,
+                 attr_id);
+    }
+}
+
 static esp_err_t esp_zb_zcl_cmd_default_resp_message_handler(const esp_zb_zcl_cmd_default_resp_message_t *message)
 {
     const char* TAG = "Response message handle";
@@ -256,7 +351,9 @@ static void bdb_start_top_level_commissioning_cb(uint8_t mode_mask)
 
 static void esp_zb_task(void *pvParameters)
 {
-    esp_zb_ep_list = esp_zb_ep_list_create();
+
+    esp_zb_ep_list_t *esp_zb_ep_list = esp_zb_ep_list_create();
+
     esp_zb_cluster_list_t *esp_zb_cluster_list = esp_zb_zcl_cluster_list_create();
 
     esp_zb_endpoint_config_t cfg = {
@@ -301,25 +398,31 @@ static void esp_zb_task(void *pvParameters)
     esp_zb_basic_cluster_add_attr(esp_zb_basic_cluster, ESP_ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, &manufname[0]);
     esp_zb_basic_cluster_add_attr(esp_zb_basic_cluster, ESP_ZB_ZCL_ATTR_BASIC_POWER_SOURCE_ID, &power_source);
     esp_zb_basic_cluster_add_attr(esp_zb_basic_cluster, ESP_ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, &modelid[0]);
-
+    /*
     esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_VALUE_ID, &temperaturebuffer[0]);
     esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_MIN_VALUE_ID, &temp_min);
     esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_MAX_VALUE_ID, &temp_max);
     esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_TOLERANCE_ID, &temp_tol);
+    */
 
-
-    esp_zb_zcl_attr_access_t aclist = ESP_ZB_ZCL_ATTR_MANUF_SPEC | ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE | ESP_ZB_ZCL_ATTR_ACCESS_REPORTING;
-
+    esp_zb_zcl_attr_access_t aclist = ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY | ESP_ZB_ZCL_ATTR_ACCESS_REPORTING;
+/*
     esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0000,ESP_ZB_ZCL_ATTR_TYPE_CHAR_STRING,
-        ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY | ESP_ZB_ZCL_ATTR_ACCESS_REPORTING,&attributeName);
-    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0001,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[0]);
-    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0002,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[1]);
-    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0003,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[2]);
-    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0004,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[3]);
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY ,&attributeName);*/
+
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0000,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[0]);
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0001,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[1]);
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0002,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[2]);
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0003,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[3]);
+
+    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0000,&temperaturebuffer[0],false);
+    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0001,&temperaturebuffer[1],false);
+    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0002,&temperaturebuffer[2],false);
+    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0003,&temperaturebuffer[3],false);
 
 
     esp_zb_cluster_list_add_custom_cluster(esp_zb_cluster_list,custom_cluster,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
-    esp_zb_cluster_list_add_temperature_meas_cluster(esp_zb_cluster_list,esp_zb_temp_sensor_attr_list,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
+    //esp_zb_cluster_list_add_temperature_meas_cluster(esp_zb_cluster_list,esp_zb_temp_sensor_attr_list,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
     esp_zb_cluster_list_add_basic_cluster(esp_zb_cluster_list, esp_zb_basic_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
     esp_zb_cluster_list_add_identify_cluster(esp_zb_cluster_list, esp_zb_identify_cluster_create(&identify_cluster_cfg), ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 
@@ -335,8 +438,6 @@ static void esp_zb_task(void *pvParameters)
     esp_zb_device_register(esp_zb_ep_list);
     esp_zb_set_node_power_descriptor(powerinfo);
     esp_zb_core_action_handler_register(zb_action_handler);
-
-    //esp_zb_scheduler_alarm()
     ESP_ERROR_CHECK(esp_zb_start(false));
     esp_zb_stack_main_loop();
 }
