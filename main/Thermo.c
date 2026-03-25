@@ -23,20 +23,11 @@ uint16_t pan_id;
 #define DEVICE_ID 0
 
 
+
 #define A (3.9083*0.001)
 #define B (-5.775*pow(10, -7))
 
 
-/*
- * Vtc = Vtc_read + Vcj
- * the cold junction temperature is calculated
- * Vcj = a0 + a1 T + a2 T^2 + a3 T^3 etc
- *
- *
- *
- *
- *
- */
 
 const char *TAG = "Thermo";
 
@@ -75,7 +66,7 @@ void spi_PT_callback(spi_transaction_t *t)
 
 }
 
-void init_spi(spi_device_handle_t* spi)
+void init_spi(spi_device_handle_t* spi, int chip_select)
 {
     spi_bus_config_t bus_config = {
         .miso_io_num = SPI_MASTER_MISO_IO,
@@ -86,7 +77,7 @@ void init_spi(spi_device_handle_t* spi)
     };
     spi_device_interface_config_t spi_device = {
         .mode = 3,
-        .spics_io_num = SPI_MAST_CS_IO,
+        .spics_io_num = chip_select,
         .clock_speed_hz = 10000000,
         .queue_size = 4,
     };
@@ -96,10 +87,10 @@ void init_spi(spi_device_handle_t* spi)
     ESP_LOGI(TAG, "SPI initialization complete \n\n");
 }
 
-void init_items(spi_device_handle_t* spi)
+void init_items(spi_device_handle_t* spi, int chip_select)
 {
     ESP_LOGI(TAG, "Initializing Thermo \n");
-    init_spi(spi);
+    init_spi(spi,chip_select);
 }
 void print_chip_info(void)
 {
@@ -128,7 +119,7 @@ void esp_task_get_Temp_data_loop()
 {
     while(true)
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
         CN0391_set_data();
         get_temp_Data(temperaturebuffer);
         update_tc_attr(0x0000, temperaturebuffer[0]);
@@ -142,9 +133,16 @@ void esp_task_get_Temp_data_loop()
 void esp_task_SPI_init()
 {
     spi_device_handle_t spidev;
-    init_items(&spidev);
+    spi_device_handle_t spidev2;
+    init_items(&spidev,SPI_MAST_CS_IO);
     CN0391_init(&spidev);
+
+    #if TEMPERATURE_MODULES == 2
+    //init_items(&spidev2);
+    //CN0391_init(&spidev2);
+    #endif
     esp_task_get_Temp_data_loop();
+
 }
 void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
 {

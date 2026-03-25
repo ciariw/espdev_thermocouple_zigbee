@@ -6,12 +6,20 @@
 #define Z2M_H
 #include "esp_zigbee_core.h"
 #include "esp_check.h"
-
+#define TEMPERATURE_MODULES 2
 #define EP_TEMPSENSOR_1 1
 #define EP_TEMPSENSOR_2 2
 #define EP_TEMPSENSOR_3 3
 #define EP_TEMPSENSOR_4 4
+
+#if TEMPERATURE_MODULES == 2
+#define CUSTOM_CLUSTER_ID 0xfffa
+#define ENDPOINT_TP 0xA
+#else
 #define CUSTOM_CLUSTER_ID 0xff00
+#define ENDPOINT_TP 10
+#endif
+
 #define CUSTOM_COMMAND_RESP 0x0001
 #define HA_ESP_SENSOR_ENDPOINT 1
 

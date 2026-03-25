@@ -274,13 +274,20 @@ void CN0391_init( spi_device_handle_t* spidev) {
    th_types[CHANNEL_P3] = P3_TYPE;
    th_types[CHANNEL_P4] = P4_TYPE;
 }
+
+int16_t convert_c_to_f(float centigrade, int scalar)
+{
+	return (int16_t)(scalar*((centigrade * 1.8)+32));
+}
+
+
 void get_temp_Data(int16_t* buff)
 {
 	int16_t cnt = 0;
 
 	for (int x = 0; x < 4; x++)
 	{
-		cnt = (int16_t)(temp1[x]*100);
+		cnt = convert_c_to_f(temp1[x],100);
 		buff[x] = cnt;
 
 	}
@@ -304,8 +311,6 @@ void CN0391_set_data(void)
         CN0391_calc_rtd_temperature(i, &temp0[i]);
         
         CN0391_calc_th_temperature(i, temp0[i], &temp1[i]);
-       
-
    }
 
 }

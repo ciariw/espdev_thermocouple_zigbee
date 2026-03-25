@@ -10,8 +10,12 @@
 
 
 char isactive[40];
-int16_t temperaturebuffer[4] = {1300,1670,1020,1111};
 
+#if TEMPERATURE_MODULES == 2
+int16_t temperaturebuffer[8] = {1300,1670,1020,1111,1234,2345,3456,9969};
+#else
+int16_t temperaturebuffer[4] = {1300,1670,1020,1111};
+#endif
 typedef struct zbstring_s {
     uint8_t len;
     char data[];
@@ -357,7 +361,7 @@ static void esp_zb_task(void *pvParameters)
     esp_zb_cluster_list_t *esp_zb_cluster_list = esp_zb_zcl_cluster_list_create();
 
     esp_zb_endpoint_config_t cfg = {
-        .endpoint = 10,
+        .endpoint = ENDPOINT_TP,
         .app_profile_id = ESP_ZB_AF_HA_PROFILE_ID,
         .app_device_id = ESP_ZB_HA_CUSTOM_ATTR_DEVICE_ID,
         .app_device_version = 0
@@ -365,67 +369,43 @@ static void esp_zb_task(void *pvParameters)
     esp_zb_identify_cluster_cfg_t identify_cluster_cfg = {
         .identify_time = 0,
     };
-    // Custom mfg/model
-    /*
-    zbstring_t modelid;
-    zbstring_t attributeName;
-    zbstring_t manufname;
-    modelid.len = 14;
-    manufname.len = 9;
-    attributeName.len = 15;
-    memccpy(&modelid.data,"ESP32C6.Sensor",'\0',modelid.len);
-
-    memccpy(&manufname.data,"Espressif",'\0',9);
-    memccpy(&attributeName.data,"TemperatureData",'\0',attributeName.len);
-    */
-    char manufname[] = {9, 'E', 's', 'p', 'r', 'e', 's', 's', 'i', 'f'};
+    #if TEMPERATURE_MODULES == 2
+    char modelid[] = {15, 'E', 'S', 'P', '3', '2', 'C', '6', '.', 'S', 'e', 'n', 's', 'o', 'r','2'};
+    #else
     char modelid[] = {14, 'E', 'S', 'P', '3', '2', 'C', '6', '.', 'S', 'e', 'n', 's', 'o', 'r'};
+    #endif
+
+    char manufname[] = {9, 'E', 's', 'p', 'r', 'e', 's', 's', 'i', 'f'};
+
     char attributeName[] = {11,'T','e','m','p','e','r','a','t','u','r','e'};
 
     /* Initialize Zigbee stack */
     esp_zb_cfg_t zb_nwk_cfg = ESP_ZB_ZED_CONFIG();
     esp_zb_init(&zb_nwk_cfg);
-    int16_t temp_min = INT16_MIN;
-    int16_t temp_max = INT16_MAX;
-    int16_t temp_tol = 10;
-
 
     esp_zb_attribute_list_t *esp_zb_basic_cluster = esp_zb_zcl_attr_list_create(ESP_ZB_ZCL_CLUSTER_ID_BASIC);
     esp_zb_attribute_list_t *custom_cluster = esp_zb_zcl_attr_list_create(CUSTOM_CLUSTER_ID);
-    esp_zb_attribute_list_t *esp_zb_temp_sensor_attr_list = esp_zb_zcl_attr_list_create(ESP_ZB_ZCL_CLUSTER_ID_TEMP_MEASUREMENT);
 
     uint8_t power_source = ESP_ZB_ZCL_BASIC_POWER_SOURCE_DC_SOURCE;
     esp_zb_basic_cluster_add_attr(esp_zb_basic_cluster, ESP_ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, &manufname[0]);
     esp_zb_basic_cluster_add_attr(esp_zb_basic_cluster, ESP_ZB_ZCL_ATTR_BASIC_POWER_SOURCE_ID, &power_source);
     esp_zb_basic_cluster_add_attr(esp_zb_basic_cluster, ESP_ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID, &modelid[0]);
-    /*
-    esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_VALUE_ID, &temperaturebuffer[0]);
-    esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_MIN_VALUE_ID, &temp_min);
-    esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_MAX_VALUE_ID, &temp_max);
-    esp_zb_temperature_meas_cluster_add_attr(esp_zb_temp_sensor_attr_list, ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_TOLERANCE_ID, &temp_tol);
-    */
-
     esp_zb_zcl_attr_access_t aclist = ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY | ESP_ZB_ZCL_ATTR_ACCESS_REPORTING;
-/*
-    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0000,ESP_ZB_ZCL_ATTR_TYPE_CHAR_STRING,
-        ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY ,&attributeName);*/
 
     esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0000,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[0]);
     esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0001,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[1]);
     esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0002,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[2]);
     esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0003,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[3]);
-
-    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0000,&temperaturebuffer[0],false);
-    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0001,&temperaturebuffer[1],false);
-    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0002,&temperaturebuffer[2],false);
-    //esp_zb_zcl_set_manufacturer_attribute_val(10,CUSTOM_CLUSTER_ID,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,0x1234,0x0003,&temperaturebuffer[3],false);
-
+    #if TEMPERATURE_MODULES == 2
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0004,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[4]);
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0005,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[5]);
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0006,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[6]);
+    esp_zb_custom_cluster_add_custom_attr(custom_cluster,0x0007,ESP_ZB_ZCL_ATTR_TYPE_S16,aclist,&temperaturebuffer[7]);
+    #endif
 
     esp_zb_cluster_list_add_custom_cluster(esp_zb_cluster_list,custom_cluster,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
-    //esp_zb_cluster_list_add_temperature_meas_cluster(esp_zb_cluster_list,esp_zb_temp_sensor_attr_list,ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
     esp_zb_cluster_list_add_basic_cluster(esp_zb_cluster_list, esp_zb_basic_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
     esp_zb_cluster_list_add_identify_cluster(esp_zb_cluster_list, esp_zb_identify_cluster_create(&identify_cluster_cfg), ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
-
     esp_zb_ep_list_add_ep(esp_zb_ep_list, esp_zb_cluster_list, cfg);
 
     esp_zb_af_node_power_desc_t powerinfo = {
