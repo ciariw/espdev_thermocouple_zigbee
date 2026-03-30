@@ -44,6 +44,7 @@
 extern "C" {
 #endif
 
+
 typedef enum
 {
 	CHANNEL_P1 = 0,
@@ -61,31 +62,32 @@ typedef enum
 }error_code;
 
 
-int32_t CN0391_read_channel(int ch);
+int32_t CN0391_read_channel(int ch, CN0391_instance_t* SPI_Instance);
 
 float CN0391_data_to_voltage(int32_t data, uint8_t channel);
 float CN0391_data_to_resistance(int32_t data);
 
-void CN0391_calc_rtd_temperature(channel_t ch, float *temp);
-void CN0391_calc_th_temperature(channel_t ch, float cjTemp, float *buffer);
+void CN0391_calc_rtd_temperature(channel_t ch, float *temp,CN0391_instance_t* SPI_Instance);
+void CN0391_calc_th_temperature(channel_t ch, float cjTemp, float *buffer,CN0391_instance_t* SPI_Instance );
 
-void CN0391_enable_channel(int channel);
-void CN0391_disable_channel(int channel);
-void CN0391_enable_current_source(int current_source_channel);
-void CN0391_start_single_conversion();
+void CN0391_enable_channel(int channel, CN0391_instance_t* SPI_Instance);
+void CN0391_disable_channel(int channel, CN0391_instance_t* SPI_Instance);
+void CN0391_enable_current_source(int current_source_channel, CN0391_instance_t* SPI_Instance);
+void CN0391_start_single_conversion(CN0391_instance_t* SPI_Instance);
 
 void CN0391_reset();
-void CN0391_setup();
-void CN0391_init( spi_device_handle_t* spidev);
+void CN0391_setup(CN0391_instance_t* SPI_Instance);
+void CN0391_init(CN0391_instance_t* SPI_Instance);
 
-void CN0391_calibration(uint8_t channel);
-void CN0391_read_reg(void);
-void CN0391_set_calibration_mode(uint16_t mode);
-void CN0391_set_power_mode(int mode);
+void CN0391_calibration(uint8_t channel, CN0391_instance_t* SPI_Instance);
+void CN0391_read_reg(CN0391_instance_t* SPI_Instance);
+void CN0391_set_calibration_mode(uint16_t mode, CN0391_instance_t* SPI_Instance);
+void CN0391_set_power_mode(int mode, CN0391_instance_t* SPI_Instance);
 
-void CN0391_set_data(void);
-void CN0391_display_data(void);
-void get_temp_Data(int16_t* buff);
+void CN0391_set_data(CN0391_instance_t* SPI_Instance);
+void CN0391_display_data(CN0391_instance_t* SPI_Instance);
+void get_temp_Data(int16_t* buff,CN0391_instance_t* SPI_Instance);
+
 
 #define YES    1
 #define NO     0

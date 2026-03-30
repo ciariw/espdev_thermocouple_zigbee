@@ -51,39 +51,41 @@
 #include <stdio.h>
 #include <math.h>
 
+static unsigned char thermocouple_type[] = { 'T', 'J', 'K', 'E', 'S', 'R', 'N', 'B' };
+/*
+
 int32_t _ADCValue0[4], _ADCValue1[4];
 float rRtdValue[4], temp0[4], temp1[4];
 
 float cj_Voltage[4], th_Voltage_read[4], th_Voltage[4];
 
-static unsigned char thermocouple_type[] = { 'T', 'J', 'K', 'E', 'S', 'R', 'N', 'B' };
 uint8_t th_types[4];
-
+*/
 error_code errFlag[4] = {NO_ERR, NO_ERR, NO_ERR, NO_ERR};
 
 #define ms_delay (1)
 
-int32_t CN0391_read_channel(int ch)
+int32_t CN0391_read_channel(int ch, CN0391_instance_t* SPI_Instance)
 {
 	int32_t data;
 
-	CN0391_enable_channel(ch);
+	CN0391_enable_channel(ch, SPI_Instance);
 
    convFlag = 1;
 
-	CN0391_start_single_conversion();
+	CN0391_start_single_conversion(SPI_Instance);
 
-	if (AD7124_WaitForConvReady(10000) == -3) {
+	if (AD7124_WaitForConvReady(10000,SPI_Instance) == -3) {
 			printf("TIMEOUT");
 			return 0;
 		}
 
 
-	AD7124_ReadData(&data);
+	AD7124_ReadData(&data, SPI_Instance);
    convFlag = 0;
 
 
-	CN0391_disable_channel(ch);
+	CN0391_disable_channel(ch, SPI_Instance);
 	return data;
 }
 
@@ -109,60 +111,61 @@ float CN0391_data_to_resistance(int32_t data)
 
    return rRtd;
 }
-void CN0391_enable_channel(int channel)
+
+void CN0391_enable_channel(int channel, CN0391_instance_t* SPI_Instance)
 {
 	enum ad7124_registers regNr =(enum ad7124_registers) (AD7124_Channel_0 + channel); //Select _ADC_Control register
-	uint32_t setValue = AD7124_ReadDeviceRegister(regNr);
+	uint32_t setValue = AD7124_ReadDeviceRegister(regNr,SPI_Instance);
 	setValue |= (uint32_t)AD7124_CH_MAP_REG_CH_ENABLE;  //Enable channel0
 	setValue &= 0xFFFF;
-	AD7124_WriteDeviceRegister(regNr, setValue);    // Write data to _ADC
+	AD7124_WriteDeviceRegister(regNr, setValue,SPI_Instance);    // Write data to _ADC
 
 }
 
-void CN0391_disable_channel(int channel)
+void CN0391_disable_channel(int channel,CN0391_instance_t* SPI_Instance)
 {
 	enum ad7124_registers regNr =(enum ad7124_registers) (AD7124_Channel_0 + channel); //Select _ADC_Control register
-	uint32_t setValue = AD7124_ReadDeviceRegister(regNr);
+	uint32_t setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
 	setValue &= (~(uint32_t) AD7124_CH_MAP_REG_CH_ENABLE);  //Enable channel0
 	setValue &= 0xFFFF;
-	AD7124_WriteDeviceRegister(regNr, setValue);    // Write data to _ADC
+	AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);    // Write data to _ADC
 
 }
 
-void CN0391_enable_current_source(int current_source_channel)
+void CN0391_enable_current_source(int current_source_channel, CN0391_instance_t* SPI_Instance)
 {
 	enum ad7124_registers regNr = AD7124_IOCon1; //Select _ADC_Control register
-	uint32_t setValue = AD7124_ReadDeviceRegister(regNr);
+	uint32_t setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
 	setValue &= ~(AD7124_IO_CTRL1_REG_IOUT_CH0(0xF));
 	setValue |= AD7124_IO_CTRL1_REG_IOUT_CH0(2*current_source_channel + 1);// set IOUT0 current
 	setValue &= 0xFFFFFF;
-	AD7124_WriteDeviceRegister(regNr, setValue);    // Write data to _ADC
+	AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);    // Write data to _ADC
 
 }
 
-void CN0391_start_single_conversion()
+void CN0391_start_single_conversion(CN0391_instance_t* SPI_Instance)
 {
 	enum ad7124_registers regNr = AD7124_ADC_Control; //Select _ADC_Control register
-	AD7124_WriteDeviceRegister(regNr, 0x0584);    // Write data to _ADC
+	AD7124_WriteDeviceRegister(regNr, 0x0584, SPI_Instance);    // Write data to _ADC
 }
 
-void CN0391_reset() {
+void CN0391_reset(CN0391_instance_t* SPI_Instance) {
 
-	AD7124_Reset();
+	AD7124_Reset(SPI_Instance);
 	printf("Reseted AD7124\n");
 }
 
-void CN0391_setup(spi_device_handle_t* spidev) {
+void CN0391_setup(CN0391_instance_t* SPI_Instance) {
 
-	AD7124_Setup(spidev);
+	AD7124_Setup(SPI_Instance);
 }
 
-void CN0391_init( spi_device_handle_t* spidev) {
+void CN0391_init(CN0391_instance_t* SPI_Instance) {
 
 	uint32_t setValue;
 	int i;
 	enum ad7124_registers regNr;
-	CN0391_setup(spidev);
+	CN0391_setup(SPI_Instance);
 
 	
 
@@ -170,7 +173,7 @@ void CN0391_init( spi_device_handle_t* spidev) {
 
 	// Set Config_0 0x19
 	regNr = AD7124_Config_0;               //Select Config_0 register
-	setValue = AD7124_ReadDeviceRegister(regNr);
+	setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
 	setValue |= AD7124_CFG_REG_BIPOLAR;     //Select bipolar operation
 	setValue |= AD7124_CFG_REG_BURNOUT(0);  //Burnout current source off
 	setValue |= AD7124_CFG_REG_REF_BUFP;
@@ -180,21 +183,21 @@ void CN0391_init( spi_device_handle_t* spidev) {
 	setValue |= AD7124_CFG_REG_REF_SEL(1); //Select REFIN2(+)/REFIN2(-)
 	setValue |= AD7124_CFG_REG_PGA(0);  //GAIN1
 	setValue &= 0xFFFF;
-	AD7124_WriteDeviceRegister(regNr, setValue);   // Write data to _ADC
+	AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);   // Write data to _ADC
 	//
    // Set AD7124_Filter_0 0x21
    regNr = AD7124_Filter_0;
-   setValue = AD7124_ReadDeviceRegister(regNr);
+   setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
    setValue |= AD7124_FILT_REG_FILTER(2);                     // set SINC3
    setValue |= AD7124_FILT_REG_FS(384);                     //FS = 48 => 50 SPS LOW power
    setValue &= 0xFFFFFF;
-   AD7124_WriteDeviceRegister(regNr, setValue);// Write data to _ADC
+   AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);// Write data to _ADC
 
 	//printf("writing %d : %lx\n, ",regNr,setValue);
    for(i = 0; i < 4; i++){
       // Set Channel_0 register 0x09
       regNr =(enum ad7124_registers)(AD7124_Channel_0 + i);
-      setValue = AD7124_ReadDeviceRegister(regNr);
+      setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
       setValue &= (~(uint32_t)AD7124_CH_MAP_REG_CH_ENABLE); //Disable channel
       setValue |= AD7124_CH_MAP_REG_SETUP(0);             // Select setup0
       setValue |= AD7124_CH_MAP_REG_AINP(2*i + 1);         // Set AIN1+, AIN3+, AIN5+, AIN7+
@@ -206,7 +209,7 @@ void CN0391_init( spi_device_handle_t* spidev) {
       }
 
       setValue &= 0xFFFF;
-      AD7124_WriteDeviceRegister(regNr, setValue);   // Write data to _ADC
+      AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);   // Write data to _ADC
 
 
       }
@@ -214,17 +217,17 @@ void CN0391_init( spi_device_handle_t* spidev) {
 
    // Set IO_Control_1 0x03
    regNr = AD7124_IOCon1;               //Select IO_Control_1 register
-   setValue = AD7124_ReadDeviceRegister(regNr);
+   setValue = AD7124_ReadDeviceRegister(regNr,SPI_Instance);
    setValue |= AD7124_IO_CTRL1_REG_IOUT0(5);// set IOUT0 current to 750uA
    setValue &= 0xFFFFFF;
-   AD7124_WriteDeviceRegister(regNr, setValue);// Write data to _ADC
+   AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);// Write data to _ADC
 
 
    //Setup 1 -> Thermocouple
 
   // Set Config_1
    regNr = AD7124_Config_1;
-   setValue = AD7124_ReadDeviceRegister(regNr);
+   setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
    setValue |= AD7124_CFG_REG_BIPOLAR;     //Select bipolar operation
    setValue |= AD7124_CFG_REG_BURNOUT(0);  //Burnout current source off
    setValue |= AD7124_CFG_REG_REF_BUFP;
@@ -234,45 +237,45 @@ void CN0391_init( spi_device_handle_t* spidev) {
    setValue |= AD7124_CFG_REG_REF_SEL(2); //internal reference
    setValue |= AD7124_CFG_REG_PGA(5);  //GAIN32
    setValue &= 0xFFFF;
-   AD7124_WriteDeviceRegister(regNr, setValue);   // Write data to _ADC
+   AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);   // Write data to _ADC
 
    // Set AD7124_Filter_0 0x21
    regNr = AD7124_Filter_1;
-   setValue = AD7124_ReadDeviceRegister(regNr);
+   setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
    setValue |= AD7124_FILT_REG_FILTER(2);                     // set SINC3
    setValue |= AD7124_FILT_REG_FS(384);                     //FS = 48 => 50 SPS
    setValue &= 0xFFFFFF;
-   AD7124_WriteDeviceRegister(regNr, setValue);// Write data to _ADC
+   AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);// Write data to _ADC
 
 
    for(i = 0; i < 4; i++){
 
       regNr = (enum ad7124_registers) AD7124_Channel_4 + i;
-      setValue = AD7124_ReadDeviceRegister(regNr);
+      setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
       setValue &= (~(uint32_t)AD7124_CH_MAP_REG_CH_ENABLE); //Disable channel
       setValue |= AD7124_CH_MAP_REG_SETUP(1);             // Select setup0
       setValue |= AD7124_CH_MAP_REG_AINP(2*i);         // Set AIN0+, AIN2+, AIN4+, AIN6+
       setValue |= AD7124_CH_MAP_REG_AINM(15);         // Set AIN15 as negative
       setValue &= 0xFFFF;
-      AD7124_WriteDeviceRegister(regNr, setValue);   // Write data to _ADC
+      AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);   // Write data to _ADC
 
 
    }
 
 	// Set _ADC_Control 0x01
 	regNr = AD7124_ADC_Control;            //Select _ADC_Control register
-	setValue = AD7124_ReadDeviceRegister(regNr);
+	setValue = AD7124_ReadDeviceRegister(regNr, SPI_Instance);
 	setValue |= AD7124_ADC_CTRL_REG_DATA_STATUS; // set data status bit in order to check on which channel the conversion is
 	setValue |= AD7124_ADC_CTRL_REG_REF_EN;
 	setValue |= AD7124_ADC_CTRL_REG_POWER_MODE(0);  //set low power mode
 	setValue &= 0xFFFF;
-	AD7124_WriteDeviceRegister(regNr, setValue);    // Write data to _ADC
+	AD7124_WriteDeviceRegister(regNr, setValue, SPI_Instance);    // Write data to _ADC
 	
-
-   th_types[CHANNEL_P1] = P1_TYPE;
-   th_types[CHANNEL_P2] = P2_TYPE;
-   th_types[CHANNEL_P3] = P3_TYPE;
-   th_types[CHANNEL_P4] = P4_TYPE;
+// Needs setter functions
+   SPI_Instance->th_types[CHANNEL_P1] = P1_TYPE;
+   SPI_Instance->th_types[CHANNEL_P2] = P2_TYPE;
+   SPI_Instance->th_types[CHANNEL_P3] = P3_TYPE;
+   SPI_Instance->th_types[CHANNEL_P4] = P4_TYPE;
 }
 
 int16_t convert_c_to_f(float centigrade, int scalar)
@@ -281,45 +284,46 @@ int16_t convert_c_to_f(float centigrade, int scalar)
 }
 
 
-void get_temp_Data(int16_t* buff)
+void get_temp_Data(int16_t* buff,CN0391_instance_t* SPI_Instance)
 {
 	int16_t cnt = 0;
 
 	for (int x = 0; x < 4; x++)
 	{
-		cnt = convert_c_to_f(temp1[x],100);
+		//printf("TC %d: %.2f \n",x,SPI_Instance->temp1[x]);
+		cnt = convert_c_to_f(SPI_Instance->temp1[x],100);
 		buff[x] = cnt;
 
 	}
 
 }
 
-void CN0391_set_data(void)
+void CN0391_set_data(CN0391_instance_t* SPI_Instance)
 {
    channel_t i;
 
   for(i = CHANNEL_P1; i <= CHANNEL_P4; i = i+1){
 
-        CN0391_enable_current_source(i);
+        CN0391_enable_current_source(i, SPI_Instance);
         
-        _ADCValue0[i] = CN0391_read_channel(i);
+        SPI_Instance->_ADCValue0[i] = CN0391_read_channel(i, SPI_Instance);
         //printf( _ADCValue0[i]);
-        _ADCValue1[i] = CN0391_read_channel((i + 4));
+        SPI_Instance->_ADCValue1[i] = CN0391_read_channel((i + 4), SPI_Instance);
         //printf( _ADCValue1[i]);
-        rRtdValue[i] = CN0391_data_to_resistance(_ADCValue0[i]);
+        SPI_Instance->rRtdValue[i] = CN0391_data_to_resistance(SPI_Instance->_ADCValue0[i]);
         //printf( rRtdValue[i]);
-        CN0391_calc_rtd_temperature(i, &temp0[i]);
+        CN0391_calc_rtd_temperature(i, &SPI_Instance->temp0[i], SPI_Instance);
         
-        CN0391_calc_th_temperature(i, temp0[i], &temp1[i]);
+        CN0391_calc_th_temperature(i, SPI_Instance->temp0[i], &SPI_Instance->temp1[i], SPI_Instance);
    }
 
 }
 
-void CN0391_calc_rtd_temperature(channel_t ch, float *temp)
+void CN0391_calc_rtd_temperature(channel_t ch, float *temp,CN0391_instance_t* SPI_Instance)
  {
      float rRtd;
 
-     rRtd = (R5*(_ADCValue0[ch] - _2_23))/(_2_23 *GAIN_RTD);
+     rRtd = (R5*(SPI_Instance->_ADCValue0[ch] - _2_23))/(_2_23 *GAIN_RTD);
 
       if(rRtd > R0) {
 
@@ -334,51 +338,51 @@ void CN0391_calc_rtd_temperature(channel_t ch, float *temp)
  }
 
 
-void CN0391_calc_th_temperature(channel_t ch, float cjTemp, float *_buffer)
+void CN0391_calc_th_temperature(channel_t ch, float cjTemp, float *_buffer, CN0391_instance_t* SPI_Instance)
 {
     float cjVoltage, thVoltage;
-    const temp_range thCoeff = thPolyCoeff[th_types[ch]];
+    const temp_range thCoeff = thPolyCoeff[SPI_Instance->th_types[ch]];
 
-    thVoltage = ((VREF_INT*(_ADCValue1[ch] - _2_23))/(_2_23*GAIN_TH)) + TC_OFFSET_VOLTAGE;
+    thVoltage = ((VREF_INT*(SPI_Instance->_ADCValue1[ch] - _2_23))/(_2_23*GAIN_TH)) + TC_OFFSET_VOLTAGE;
 
-    th_Voltage_read[ch]= thVoltage;
+    SPI_Instance->th_Voltage_read[ch]= thVoltage;
 
-      if(cjTemp <  cjTempRange[th_types[ch]][1]) {
+      if(cjTemp <  cjTempRange[SPI_Instance->th_types[ch]][1]) {
          POLY_CALC(cjVoltage, cjTemp, thCoeff.neg_temp);
       } else {
 
-        if(cjTemp <=  cjTempRange[th_types[ch]][2]){
+        if(cjTemp <=  cjTempRange[SPI_Instance->th_types[ch]][2]){
 
           POLY_CALC(cjVoltage, cjTemp, thCoeff.pos_temp1);
-          if(th_types[ch] == TYPE_K){
+          if(SPI_Instance->th_types[ch] == TYPE_K){
              cjVoltage += COEFF_K_A0*exp(COEFF_K_A1*(cjTemp - COEFF_K_A2)*(cjTemp - COEFF_K_A2));
            }
         } else{
           POLY_CALC(cjVoltage, cjTemp, thCoeff.pos_temp2);
         }
       }
-      cj_Voltage[ch] = cjVoltage;
+      SPI_Instance->cj_Voltage[ch] = cjVoltage;
 
       thVoltage += cjVoltage;
 
-      th_Voltage[ch] = thVoltage;
+      SPI_Instance->th_Voltage[ch] = thVoltage;
 
 
-      if(thVoltage < thVoltageRange[th_types[ch]][0]) {
+      if(thVoltage < thVoltageRange[SPI_Instance->th_types[ch]][0]) {
             errFlag[ch] = ERR_UNDER_RANGE;
       } else{
-            if(thVoltage < thVoltageRange[th_types[ch]][1]) {
+            if(thVoltage < thVoltageRange[SPI_Instance->th_types[ch]][1]) {
               POLY_CALC(*_buffer, thVoltage, thCoeff.neg_voltage);
             } else {
-                if(thVoltage <= thVoltageRange[th_types[ch]][2]) {
+                if(thVoltage <= thVoltageRange[SPI_Instance->th_types[ch]][2]) {
                   POLY_CALC(*_buffer, thVoltage, thCoeff.pos_voltage1);
                 }else{
 
-                   if((thVoltage <= thVoltageRange[th_types[ch]][3]) && (thCoeff.pos_voltage2[0] != 1.0f)) {
+                   if((thVoltage <= thVoltageRange[SPI_Instance->th_types[ch]][3]) && (thCoeff.pos_voltage2[0] != 1.0f)) {
                     POLY_CALC(*_buffer, thVoltage, thCoeff.pos_voltage2);
                   }else{
                         if(thCoeff.pos_voltage3[0] != 1.0f){
-                           if(thVoltage <= thVoltageRange[th_types[ch]][4]){
+                           if(thVoltage <= thVoltageRange[SPI_Instance->th_types[ch]][4]){
                                  POLY_CALC(*_buffer, thVoltage, thCoeff.pos_voltage3);
                            }
                            else{
@@ -395,58 +399,58 @@ void CN0391_calc_th_temperature(channel_t ch, float cjTemp, float *_buffer)
 
 }
 
-void CN0391_calibration(uint8_t channel)
+void CN0391_calibration(uint8_t channel, CN0391_instance_t* SPI_Instance)
 {
 	printf("start calibration\n");
       if(channel == RTD_CHANNEL){
 
-                 CN0391_enable_current_source(1);
-                 CN0391_enable_channel(0);
-                 CN0391_set_calibration_mode(0x514);
-                 while(AD7124_ReadDeviceRegister(AD7124_ADC_Control) != 0x0510);  //wait for idle mode
-                 CN0391_disable_channel(0);
+                 CN0391_enable_current_source(1, SPI_Instance);
+                 CN0391_enable_channel(0,SPI_Instance);
+                 CN0391_set_calibration_mode(0x514, SPI_Instance);
+                 while(AD7124_ReadDeviceRegister(AD7124_ADC_Control, SPI_Instance) != 0x0510);  //wait for idle mode
+                 CN0391_disable_channel(0,SPI_Instance);
       } else{
 
-        CN0391_enable_channel(4);
+        CN0391_enable_channel(4,SPI_Instance);
       	printf("After Enable Channel\n");
-        AD7124_WriteDeviceRegister(AD7124_Offset_1, 0x800000);
+        AD7124_WriteDeviceRegister(AD7124_Offset_1, 0x800000,SPI_Instance);
       	printf("After AD7124_WriteDeviceRegister(AD7124_Offset_1, 0x800000);\n");
-      	CN0391_set_calibration_mode(0x518);
+      	CN0391_set_calibration_mode(0x518, SPI_Instance);
       	printf("After CN0391_set_calibration_mode(0x518);\n");
-      	while(AD7124_ReadDeviceRegister(AD7124_ADC_Control) != 0x0510);  //wait for idle mode
+      	while(AD7124_ReadDeviceRegister(AD7124_ADC_Control,SPI_Instance) != 0x0510);  //wait for idle mode
       	printf("After 	while(AD7124_ReadDeviceRegister(AD7124_ADC_Control) != 0x0510); \n");
-      	CN0391_set_calibration_mode(0x514);
+      	CN0391_set_calibration_mode(0x514, SPI_Instance);
       	printf("After CN0391_set_calibration_mode(0x514);\n");
-      	while(AD7124_ReadDeviceRegister(AD7124_ADC_Control) != 0x0510);  //wait for idle mode
+      	while(AD7124_ReadDeviceRegister(AD7124_ADC_Control,SPI_Instance) != 0x0510);  //wait for idle mode
       	printf("After while(AD7124_ReadDeviceRegister(AD7124_ADC_Control) != 0x0510);\n");
-      	CN0391_disable_channel(4);
+      	CN0391_disable_channel(4,SPI_Instance);
       	printf("After CN0391_disable_channel(4);\n");
       }
 
-      AD7124_WriteDeviceRegister(AD7124_ADC_Control, 0x588);
+      AD7124_WriteDeviceRegister(AD7124_ADC_Control, 0x588,SPI_Instance);
 	printf("done calibration");
 }
 
-void CN0391_read_reg(void)
+void CN0391_read_reg(CN0391_instance_t* SPI_Instance)
 {
    enum ad7124_registers regNr;
 
    for(regNr = AD7124_Status; regNr < AD7124_REG_NO;regNr =(enum ad7124_registers)(regNr + 1)) {
 
-         AD7124_ReadDeviceRegister(regNr);
+         AD7124_ReadDeviceRegister(regNr,SPI_Instance);
 
    }
 
 }
 
-void CN0391_set_calibration_mode(uint16_t mode)
+void CN0391_set_calibration_mode(uint16_t mode, CN0391_instance_t* SPI_Instance)
 {
    convFlag = 1;
 
 
-   AD7124_WriteDeviceRegister(AD7124_ADC_Control, mode);
+   AD7124_WriteDeviceRegister(AD7124_ADC_Control, mode,SPI_Instance);
 
-   if (AD7124_WaitForConvReady(100000) == -3) {
+   if (AD7124_WaitForConvReady(100000,SPI_Instance) == -3) {
         printf("TIMEOUT");
 
      }
@@ -455,22 +459,22 @@ void CN0391_set_calibration_mode(uint16_t mode)
 }
 
 
-void CN0391_set_power_mode(int mode)
+void CN0391_set_power_mode(int mode, CN0391_instance_t* SPI_Instance)
 {
    enum ad7124_registers regNr = AD7124_ADC_Control;            //Select ADC_Control register
-   uint32_t setValue = AD7124_ReadDeviceRegister(regNr);
+   uint32_t setValue = AD7124_ReadDeviceRegister(regNr,SPI_Instance);
    setValue |= AD7124_ADC_CTRL_REG_POWER_MODE(mode);  //set low power mode
    setValue &= 0xFFFF;
-   AD7124_WriteDeviceRegister(regNr, setValue);    // Write data to ADC
+   AD7124_WriteDeviceRegister(regNr, setValue,SPI_Instance);    // Write data to ADC
    
 }
-void CN0391_display_data(void)
+void CN0391_display_data(CN0391_instance_t* SPI_Instance)
 {
    channel_t i;
    for(i = CHANNEL_P1; i <= CHANNEL_P4; i = (i+1)){
-   	printf("\n channel %d (Type %c) \n",i, thermocouple_type[th_types[i]]);
-   	printf("ADC code %d\n",(int)_ADCValue0[i]);
-   	printf("cj Temp = %f", temp0[i]);
+   	printf("\n channel %d (Type %c) \n",i, thermocouple_type[SPI_Instance->th_types[i]]);
+   	printf("ADC code %d\n",(int)SPI_Instance->_ADCValue0[i]);
+   	printf("cj Temp = %f", SPI_Instance->temp0[i]);
 	if(errFlag[i] == ERR_UNDER_RANGE){
          printf("under range");
     }
@@ -479,7 +483,7 @@ void CN0391_display_data(void)
 	      printf("Over range");
 	    }
 	    else{
-	    	printf("cj Temp = %f", temp1[i]);
+	    	printf("cj Temp = %f", SPI_Instance->temp1[i]);
 	    }
     }
 

@@ -179,6 +179,19 @@ enum ad7124_registers {
         GAIN7_REG    = 0x38,
     };
 
+
+typedef struct CN0391_instance
+{
+    int32_t _ADCValue0[4];
+    int32_t _ADCValue1[4];
+    float rRtdValue[4], temp0[4], temp1[4];
+    float cj_Voltage[4], th_Voltage_read[4], th_Voltage[4];
+    uint8_t th_types[4];
+    ad7124_st_reg regs[57];
+    spi_device_handle_t* dev;
+} CN0391_instance_t;
+
+
     /* Communication Register bits */
 #define AD7124_COMM_REG_WEN    (0 << 7)
 #define AD7124_COMM_REG_WR     (0 << 6)
@@ -331,47 +344,47 @@ enum ad7124_registers {
 /**
  * @brief Analog Devices AD7790 SPI 16-bit Buffered Sigma-Delta ADC
  */
-void AD7124_Init();
+void AD7124_Init(CN0391_instance_t* SPI_Instance);
 
-int32_t AD7124_Reset();
+int32_t AD7124_Reset(CN0391_instance_t* SPI_Instance);
 /* Reads and returns the value of a device register. */
-uint32_t AD7124_ReadDeviceRegister(enum ad7124_registers reg);
+uint32_t AD7124_ReadDeviceRegister(enum ad7124_registers reg, CN0391_instance_t* SPI_Instance);
 
 /* Writes the specified value to a device register. */
-int32_t AD7124_WriteDeviceRegister(enum ad7124_registers reg, uint32_t value);
+int32_t AD7124_WriteDeviceRegister(enum ad7124_registers reg, uint32_t value, CN0391_instance_t* SPI_Instance);
 
 /*! Reads the value of the specified register. */
-int32_t AD7124_ReadRegister(ad7124_st_reg* pReg);
+int32_t AD7124_ReadRegister(ad7124_st_reg* pReg, CN0391_instance_t* SPI_Instance);
 
 /*! Writes the value of the specified register. */
-int32_t AD7124_WriteRegister(ad7124_st_reg reg);
+int32_t AD7124_WriteRegister(ad7124_st_reg reg, CN0391_instance_t* SPI_Instance);
 
 /*! Reads the value of the specified register without a device state check. */
-int32_t AD7124_NoCheckReadRegister(ad7124_st_reg* pReg);
+int32_t AD7124_NoCheckReadRegister(ad7124_st_reg* pReg, CN0391_instance_t* SPI_Instance);
 
 /*! Writes the value of the specified register without a device state check. */
-int32_t AD7124_NoCheckWriteRegister(ad7124_st_reg reg);
+int32_t AD7124_NoCheckWriteRegister(ad7124_st_reg reg, CN0391_instance_t* SPI_Instance);
 
 /*! Waits until the device can accept read and write user actions. */
-int32_t AD7124_WaitForSpiReady(uint32_t timeout);
+int32_t AD7124_WaitForSpiReady(uint32_t timeout, CN0391_instance_t* SPI_Instance);
 
 /*! Waits until a new conversion result is available. */
-int32_t AD7124_WaitForConvReady(uint32_t timeout);
+int32_t AD7124_WaitForConvReady(uint32_t timeout, CN0391_instance_t* SPI_Instance);
 
 /*! Reads the conversion result from the device. */
-int32_t AD7124_ReadData(int32_t* pData);
+int32_t AD7124_ReadData(int32_t* pData, CN0391_instance_t* SPI_Instance);
 
 /*! Computes the CRC checksum for a data buffer. */
-uint8_t AD7124_ComputeCRC8(uint8_t* pBuf, uint8_t bufSize);
+uint8_t AD7124_ComputeCRC8(uint8_t* pBuf, uint8_t bufSize, CN0391_instance_t* SPI_Instance);
 
 /*! Updates the device SPI interface settings. */
-void AD7124_UpdateDevSpiSettings();
+void AD7124_UpdateDevSpiSettings(CN0391_instance_t* SPI_Instance);
 
 /*! Initializes the AD7124. */
-int32_t AD7124_Setup(spi_device_handle_t* spi_device);
+int32_t AD7124_Setup(CN0391_instance_t* SPI_Instance);
 
-uint8_t AD7124_SPI_Read(uint8_t *data, uint8_t bytes_number);
-uint8_t AD7124_SPI_Write(uint8_t *data, uint8_t bytes_number);
+uint8_t AD7124_SPI_Read(uint8_t *data, uint8_t bytes_number,CN0391_instance_t* SPI_Instance);
+uint8_t AD7124_SPI_Write(uint8_t *data, uint8_t bytes_number,CN0391_instance_t* SPI_Instance);
 
 #ifdef  __cplusplus
 }

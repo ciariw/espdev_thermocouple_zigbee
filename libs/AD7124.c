@@ -48,72 +48,133 @@
 #include <stdint.h>
 #include "AD7124.h"
 #include "Communication.h"
-spi_device_handle_t* spidev;
+//spi_device_handle_t* spidev;
 /*! Array holding the info for the ad7124 registers - address, initial value,
     size and access type. */
+ad7124_st_reg ad7124_regs[57] = {
+    {0x00, 0x00,   1, 2},
+    {0x01, 0x0000, 2, 1},
+    {0x02, 0x0000, 3, 2},
+    {0x03, 0x000000, 3, 1},
+    {0x04, 0x0000, 2, 1},
+    {0x05, 0x12,   1, 2},
+    {0x06, 0x0000, 3, 2},
+    {0x07, 0x000040, 3, 1},
+    {0x08, 0x00,   1, 2},
+    {0x09, 0x8001, 2, 1},
+    {0x0A, 0x0001, 2, 1},
+    {0x0B, 0x0001, 2, 1},
+    {0x0C, 0x0001, 2, 1},
+    {0x0D, 0x0001, 2, 1},
+    {0x0E, 0x0001, 2, 1},
+    {0x0F, 0x0001, 2, 1},
+    {0x10, 0x0001, 2, 1},
+    {0x11, 0x0001, 2, 1},
+    {0x12, 0x0001, 2, 1},
+    {0x13, 0x0001, 2, 1},
+    {0x14, 0x0001, 2, 1},
+    {0x15, 0x0001, 2, 1},
+    {0x16, 0x0001, 2, 1},
+    {0x17, 0x0001, 2, 1},
+    {0x18, 0x0001, 2, 1},
+    {0x19, 0x0860, 2, 1},
+    {0x1A, 0x0860, 2, 1},
+    {0x1B, 0x0860, 2, 1},
+    {0x1C, 0x0860, 2, 1},
+    {0x1D, 0x0860, 2, 1},
+    {0x1E, 0x0860, 2, 1},
+    {0x1F, 0x0860, 2, 1},
+    {0x20, 0x0860, 2, 1},
+    {0x21, 0x060180, 3, 1},
+    {0x22, 0x060180, 3, 1},
+    {0x23, 0x060180, 3, 1},
+    {0x24, 0x060180, 3, 1},
+    {0x25, 0x060180, 3, 1},
+    {0x26, 0x060180, 3, 1},
+    {0x27, 0x060180, 3, 1},
+    {0x28, 0x060180, 3, 1},
+    {0x29, 0x800000, 3, 1},
+    {0x2A, 0x800000, 3, 1},
+    {0x2B, 0x800000, 3, 1},
+    {0x2C, 0x800000, 3, 1},
+    {0x2D, 0x800000, 3, 1},
+    {0x2E, 0x800000, 3, 1},
+    {0x2F, 0x800000, 3, 1},
+    {0x30, 0x800000, 3, 1},
+    {0x31, 0x500000, 3, 1},
+    {0x32, 0x500000, 3, 1},
+    {0x33, 0x500000, 3, 1},
+    {0x34, 0x500000, 3, 1},
+    {0x35, 0x500000, 3, 1},
+    {0x36, 0x500000, 3, 1},
+    {0x37, 0x500000, 3, 1},
+    {0x38, 0x500000, 3, 1},
+};
+/*
     ad7124_st_reg ad7124_regs[57] = {
-        {0x00, 0x00,   1, 2}, /* AD7124_Status */
-        {0x01, 0x0000, 2, 1}, /* AD7124_ADC_Control */
-        {0x02, 0x0000, 3, 2}, /* AD7124_Data */
-        {0x03, 0x000000, 3, 1}, /* AD7124_IOCon1 */
-        {0x04, 0x0000, 2, 1}, /* AD7124_IOCon2 */
-        {0x05, 0x12,   1, 2}, /* AD7124_ID */
-        {0x06, 0x0000, 3, 2}, /* AD7124_Error */
-        {0x07, 0x000040, 3, 1}, /* AD7124_Error_En */
-        {0x08, 0x00,   1, 2}, /* AD7124_Mclk_Count */
-        {0x09, 0x8001, 2, 1}, /* AD7124_Channel_0 */
-        {0x0A, 0x0001, 2, 1}, /* AD7124_Channel_1 */
-        {0x0B, 0x0001, 2, 1}, /* AD7124_Channel_2 */
-        {0x0C, 0x0001, 2, 1}, /* AD7124_Channel_3 */
-        {0x0D, 0x0001, 2, 1}, /* AD7124_Channel_4 */
-        {0x0E, 0x0001, 2, 1}, /* AD7124_Channel_5 */
-        {0x0F, 0x0001, 2, 1}, /* AD7124_Channel_6 */
-        {0x10, 0x0001, 2, 1}, /* AD7124_Channel_7 */
-        {0x11, 0x0001, 2, 1}, /* AD7124_Channel_8 */
-        {0x12, 0x0001, 2, 1}, /* AD7124_Channel_9 */
-        {0x13, 0x0001, 2, 1}, /* AD7124_Channel_10 */
-        {0x14, 0x0001, 2, 1}, /* AD7124_Channel_11 */
-        {0x15, 0x0001, 2, 1}, /* AD7124_Channel_12 */
-        {0x16, 0x0001, 2, 1}, /* AD7124_Channel_13 */
-        {0x17, 0x0001, 2, 1}, /* AD7124_Channel_14 */
-        {0x18, 0x0001, 2, 1}, /* AD7124_Channel_15 */
-        {0x19, 0x0860, 2, 1}, /* AD7124_Config_0 */
-        {0x1A, 0x0860, 2, 1}, /* AD7124_Config_1 */
-        {0x1B, 0x0860, 2, 1}, /* AD7124_Config_2 */
-        {0x1C, 0x0860, 2, 1}, /* AD7124_Config_3 */
-        {0x1D, 0x0860, 2, 1}, /* AD7124_Config_4 */
-        {0x1E, 0x0860, 2, 1}, /* AD7124_Config_5 */
-        {0x1F, 0x0860, 2, 1}, /* AD7124_Config_6 */
-        {0x20, 0x0860, 2, 1}, /* AD7124_Config_7 */
-        {0x21, 0x060180, 3, 1}, /* AD7124_Filter_0 */
-        {0x22, 0x060180, 3, 1}, /* AD7124_Filter_1 */
-        {0x23, 0x060180, 3, 1}, /* AD7124_Filter_2 */
-        {0x24, 0x060180, 3, 1}, /* AD7124_Filter_3 */
-        {0x25, 0x060180, 3, 1}, /* AD7124_Filter_4 */
-        {0x26, 0x060180, 3, 1}, /* AD7124_Filter_5 */
-        {0x27, 0x060180, 3, 1}, /* AD7124_Filter_6 */
-        {0x28, 0x060180, 3, 1}, /* AD7124_Filter_7 */
-        {0x29, 0x800000, 3, 1}, /* AD7124_Offset_0 */
-        {0x2A, 0x800000, 3, 1}, /* AD7124_Offset_1 */
-        {0x2B, 0x800000, 3, 1}, /* AD7124_Offset_2 */
-        {0x2C, 0x800000, 3, 1}, /* AD7124_Offset_3 */
-        {0x2D, 0x800000, 3, 1}, /* AD7124_Offset_4 */
-        {0x2E, 0x800000, 3, 1}, /* AD7124_Offset_5 */
-        {0x2F, 0x800000, 3, 1}, /* AD7124_Offset_6 */
-        {0x30, 0x800000, 3, 1}, /* AD7124_Offset_7 */
-        {0x31, 0x500000, 3, 1}, /* AD7124_Gain_0 */
-        {0x32, 0x500000, 3, 1}, /* AD7124_Gain_1 */
-        {0x33, 0x500000, 3, 1}, /* AD7124_Gain_2 */
-        {0x34, 0x500000, 3, 1}, /* AD7124_Gain_3 */
-        {0x35, 0x500000, 3, 1}, /* AD7124_Gain_4 */
-        {0x36, 0x500000, 3, 1}, /* AD7124_Gain_5 */
-        {0x37, 0x500000, 3, 1}, /* AD7124_Gain_6 */
-        {0x38, 0x500000, 3, 1}, /* AD7124_Gain_7 */
+        {0x00, 0x00,   1, 2},
+        {0x01, 0x0000, 2, 1},
+        {0x02, 0x0000, 3, 2},
+        {0x03, 0x000000, 3, 1},
+        {0x04, 0x0000, 2, 1},
+        {0x05, 0x12,   1, 2},
+        {0x06, 0x0000, 3, 2},
+        {0x07, 0x000040, 3, 1},
+        {0x08, 0x00,   1, 2},
+        {0x09, 0x8001, 2, 1},
+        {0x0A, 0x0001, 2, 1},
+        {0x0B, 0x0001, 2, 1},
+        {0x0C, 0x0001, 2, 1},
+        {0x0D, 0x0001, 2, 1},
+        {0x0E, 0x0001, 2, 1},
+        {0x0F, 0x0001, 2, 1},
+        {0x10, 0x0001, 2, 1},
+        {0x11, 0x0001, 2, 1},
+        {0x12, 0x0001, 2, 1},
+        {0x13, 0x0001, 2, 1},
+        {0x14, 0x0001, 2, 1},
+        {0x15, 0x0001, 2, 1},
+        {0x16, 0x0001, 2, 1},
+        {0x17, 0x0001, 2, 1},
+        {0x18, 0x0001, 2, 1},
+        {0x19, 0x0860, 2, 1},
+        {0x1A, 0x0860, 2, 1},
+        {0x1B, 0x0860, 2, 1},
+        {0x1C, 0x0860, 2, 1},
+        {0x1D, 0x0860, 2, 1},
+        {0x1E, 0x0860, 2, 1},
+        {0x1F, 0x0860, 2, 1},
+        {0x20, 0x0860, 2, 1},
+        {0x21, 0x060180, 3, 1},
+        {0x22, 0x060180, 3, 1},
+        {0x23, 0x060180, 3, 1},
+        {0x24, 0x060180, 3, 1},
+        {0x25, 0x060180, 3, 1},
+        {0x26, 0x060180, 3, 1},
+        {0x27, 0x060180, 3, 1},
+        {0x28, 0x060180, 3, 1},
+        {0x29, 0x800000, 3, 1},
+        {0x2A, 0x800000, 3, 1},
+        {0x2B, 0x800000, 3, 1},
+        {0x2C, 0x800000, 3, 1},
+        {0x2D, 0x800000, 3, 1},
+        {0x2E, 0x800000, 3, 1},
+        {0x2F, 0x800000, 3, 1},
+        {0x30, 0x800000, 3, 1},
+        {0x31, 0x500000, 3, 1},
+        {0x32, 0x500000, 3, 1},
+        {0x33, 0x500000, 3, 1},
+        {0x34, 0x500000, 3, 1},
+        {0x35, 0x500000, 3, 1},
+        {0x36, 0x500000, 3, 1},
+        {0x37, 0x500000, 3, 1},
+        {0x38, 0x500000, 3, 1},
     };
 
 ad7124_st_reg *regs = ad7124_regs; // reg map 38 bytes ?
+*/
 uint8_t useCRC; //
-int check_ready; // ?
+int check_ready = 0; // ?
 int spi_rdy_poll_cnt; // timer ?
 
 
@@ -125,9 +186,9 @@ int spi_rdy_poll_cnt; // timer ?
  * @param MISO - (optional)pin of the SPI interface
  * @param SCK  - (optional)pin of the SPI interface
  */
-void AD7124_Init()
+void AD7124_Init(CN0391_instance_t* SPI_Instance)
 {
-    regs = ad7124_regs;
+
     check_ready = 0;
     useCRC = AD7124_DISABLE_CRC;
     spi_rdy_poll_cnt = 25000;
@@ -144,7 +205,7 @@ void AD7124_Init()
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_NoCheckReadRegister(ad7124_st_reg* pReg)
+int32_t AD7124_NoCheckReadRegister(ad7124_st_reg* pReg, CN0391_instance_t* SPI_Instance)
 {
     int32_t ret       = 0;
     uint8_t _buffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -162,7 +223,7 @@ int32_t AD7124_NoCheckReadRegister(ad7124_st_reg* pReg)
     /* Read data from the device */
     ret = AD7124_SPI_Read(_buffer,
                    ((useCRC != AD7124_DISABLE_CRC) ? pReg->_size + 1
-                    : pReg->_size) + 1);
+                    : pReg->_size) + 1,SPI_Instance);
     if(ret < 0)
         return ret;
 
@@ -173,7 +234,7 @@ int32_t AD7124_NoCheckReadRegister(ad7124_st_reg* pReg)
         for(i = 1; i < pReg->_size + 2; ++i) {
             msgBuf[i] = _buffer[i];
         }
-        check8 = AD7124_ComputeCRC8(msgBuf, pReg->_size + 2);
+        check8 = AD7124_ComputeCRC8(msgBuf, pReg->_size + 2, SPI_Instance);
     }
 
     if(check8 != 0) {
@@ -203,7 +264,7 @@ int32_t AD7124_NoCheckReadRegister(ad7124_st_reg* pReg)
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_NoCheckWriteRegister(ad7124_st_reg reg)
+int32_t AD7124_NoCheckWriteRegister(ad7124_st_reg reg, CN0391_instance_t* SPI_Instance)
 {
     int32_t ret      = 0;
     int32_t regValue = 0;
@@ -225,14 +286,14 @@ int32_t AD7124_NoCheckWriteRegister(ad7124_st_reg reg)
 
     /* Compute the CRC */
     if(useCRC != AD7124_DISABLE_CRC) {
-        crc8 = AD7124_ComputeCRC8(wrBuf, reg._size + 1);
+        crc8 = AD7124_ComputeCRC8(wrBuf, reg._size + 1,SPI_Instance);
         wrBuf[reg._size + 1] = crc8;
     }
 
     /* Write data to the device */
     ret = AD7124_SPI_Write(wrBuf,
                     (useCRC != AD7124_DISABLE_CRC) ? reg._size + 2
-                    : reg._size + 1);
+                    : reg._size + 1, SPI_Instance);
 
     return ret;
 }
@@ -249,16 +310,16 @@ int32_t AD7124_NoCheckWriteRegister(ad7124_st_reg reg)
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_ReadRegister(ad7124_st_reg* pReg)
+int32_t AD7124_ReadRegister(ad7124_st_reg* pReg, CN0391_instance_t* SPI_Instance)
 {
     int32_t ret;
 
     if (pReg->addr != ERR_REG && check_ready) {
-        ret = AD7124_WaitForSpiReady(spi_rdy_poll_cnt);
+        ret = AD7124_WaitForSpiReady(spi_rdy_poll_cnt, SPI_Instance);
         if (ret < 0)
             return ret;
     }
-    ret = AD7124_NoCheckReadRegister(pReg);
+    ret = AD7124_NoCheckReadRegister(pReg, SPI_Instance);
 
     return ret;
 }
@@ -273,16 +334,16 @@ int32_t AD7124_ReadRegister(ad7124_st_reg* pReg)
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_WriteRegister(ad7124_st_reg pReg)
+int32_t AD7124_WriteRegister(ad7124_st_reg pReg, CN0391_instance_t* SPI_Instance)
 {
     int32_t ret;
 
     if (check_ready) {
-        ret = AD7124_WaitForSpiReady(spi_rdy_poll_cnt);
+        ret = AD7124_WaitForSpiReady(spi_rdy_poll_cnt, SPI_Instance);
         if (ret < 0)
             return ret;
     }
-    ret = AD7124_NoCheckWriteRegister(pReg);
+    ret = AD7124_NoCheckWriteRegister(pReg, SPI_Instance);
 
     return ret;
 }
@@ -299,10 +360,10 @@ int32_t AD7124_WriteRegister(ad7124_st_reg pReg)
 *
 * @return Returns the value read from the specified register.
 *******************************************************************************/
-uint32_t AD7124_ReadDeviceRegister(enum ad7124_registers reg)
+uint32_t AD7124_ReadDeviceRegister(enum ad7124_registers reg, CN0391_instance_t* SPI_Instance)
 {
-    AD7124_ReadRegister(&regs[reg]);
-    return (regs[reg].value);
+    AD7124_ReadRegister(&SPI_Instance->regs[reg], SPI_Instance);
+    return (SPI_Instance->regs[reg].value);
 }
 
 /***************************************************************************//**
@@ -315,10 +376,10 @@ uint32_t AD7124_ReadDeviceRegister(enum ad7124_registers reg)
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_WriteDeviceRegister(enum ad7124_registers reg, uint32_t value)
+int32_t AD7124_WriteDeviceRegister(enum ad7124_registers reg, uint32_t value, CN0391_instance_t* SPI_Instance)
 {
-    regs[reg].value = value;
-    return(AD7124_WriteRegister(regs[reg]));
+    SPI_Instance->regs[reg].value = value;
+    return(AD7124_WriteRegister(SPI_Instance->regs[reg], SPI_Instance));
 }
 
 /***************************************************************************//**
@@ -328,12 +389,12 @@ int32_t AD7124_WriteDeviceRegister(enum ad7124_registers reg, uint32_t value)
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_Reset()
+int32_t AD7124_Reset(CN0391_instance_t* SPI_Instance)
 {
     int32_t ret = 0;
     uint8_t wrBuf[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-    ret = AD7124_SPI_Write( wrBuf, 8);
+    ret = AD7124_SPI_Write( wrBuf, 8,SPI_Instance);
 
     return ret;
 }
@@ -347,19 +408,19 @@ int32_t AD7124_Reset()
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_WaitForSpiReady(uint32_t timeout)
+int32_t AD7124_WaitForSpiReady(uint32_t timeout, CN0391_instance_t* SPI_Instance)
 {
     int32_t ret;
     int8_t _ready = 0;
 
     while(!_ready && --timeout) {
         /* Read the value of the Error Register */
-        ret = AD7124_ReadRegister(&regs[AD7124_Error]);
+        ret = AD7124_ReadRegister(&SPI_Instance->regs[AD7124_Error],SPI_Instance);
         if(ret < 0)
             return ret;
 
         /* Check the SPI IGNORE Error bit in the Error Register */
-        _ready = (regs[AD7124_Error].value &
+        _ready = (SPI_Instance->regs[AD7124_Error].value &
                  AD7124_ERR_REG_SPI_IGNORE_ERR) == 0;
     }
 
@@ -375,19 +436,19 @@ int32_t AD7124_WaitForSpiReady(uint32_t timeout)
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_WaitForConvReady(uint32_t timeout)
+int32_t AD7124_WaitForConvReady(uint32_t timeout, CN0391_instance_t* SPI_Instance)
 {
     int32_t ret;
     int8_t _ready = 0;
 
     while(!_ready && --timeout) {
         /* Read the value of the Status Register */
-        ret = AD7124_ReadRegister(&regs[AD7124_Status]);
+        ret = AD7124_ReadRegister(&SPI_Instance->regs[AD7124_Status],SPI_Instance);
         if(ret < 0)
             return ret;
 
         /* Check the RDY bit in the Status Register */
-        _ready = (regs[AD7124_Status].value &
+        _ready = (SPI_Instance->regs[AD7124_Status].value &
                  AD7124_STATUS_REG_RDY) == 0;
     }
 
@@ -402,7 +463,7 @@ int32_t AD7124_WaitForConvReady(uint32_t timeout)
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_ReadData( int32_t* pData)
+int32_t AD7124_ReadData(int32_t* pData, CN0391_instance_t* SPI_Instance)
 {
     int32_t ret       = 0;
     uint8_t _buffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -412,13 +473,13 @@ int32_t AD7124_ReadData( int32_t* pData)
     if( !pData)
         return INVALID_VAL;
 
-    pReg = &regs[AD7124_Data];
+    pReg = &SPI_Instance->regs[AD7124_Data];
 
     /* Build the Command word */
     _buffer[0] = AD7124_COMM_REG_WEN | AD7124_COMM_REG_RD |
                 AD7124_COMM_REG_RA(pReg->addr);
 
-     SPI_Read(spidev, _buffer, pReg->_size + 1);
+     SPI_Read(SPI_Instance->dev, _buffer, pReg->_size + 1);
 
 
     if(ret < 0)
@@ -441,7 +502,7 @@ int32_t AD7124_ReadData( int32_t* pData)
 *
 * @return Returns the computed CRC checksum.
 *******************************************************************************/
-uint8_t AD7124_ComputeCRC8(uint8_t * pBuf, uint8_t bufSize)
+uint8_t AD7124_ComputeCRC8(uint8_t * pBuf, uint8_t bufSize, CN0391_instance_t* SPI_Instance)
 {
     uint8_t i   = 0;
     uint8_t crc = 0;
@@ -469,10 +530,10 @@ uint8_t AD7124_ComputeCRC8(uint8_t * pBuf, uint8_t bufSize)
 *
 * @return None.
 *******************************************************************************/
-void AD7124_UpdateDevSpiSettings()
+void AD7124_UpdateDevSpiSettings(CN0391_instance_t* SPI_Instance)
 {
 
-    if (regs[AD7124_Error_En].value & AD7124_ERREN_REG_SPI_IGNORE_ERR_EN) {
+    if (SPI_Instance->regs[AD7124_Error_En].value & AD7124_ERREN_REG_SPI_IGNORE_ERR_EN) {
        // check_ready = 1;
     } else {
         check_ready = 0;
@@ -489,17 +550,16 @@ void AD7124_UpdateDevSpiSettings()
 *
 * @return Returns 0 for success or negative error code.
 *******************************************************************************/
-int32_t AD7124_Setup(spi_device_handle_t* spi_device)
+int32_t AD7124_Setup(CN0391_instance_t* SPI_Instance)
 {
-    spidev = spi_device;
 
     int32_t ret;
     enum ad7124_registers regNr;
-
+    memcpy(SPI_Instance->regs, ad7124_regs, sizeof(ad7124_st_reg)*57);
     spi_rdy_poll_cnt = 25000;
 
     /*  Reset the device interface.*/
-    ret = AD7124_Reset();
+    ret = AD7124_Reset(SPI_Instance);
     if (ret < 0)
         return ret;
 
@@ -507,40 +567,40 @@ int32_t AD7124_Setup(spi_device_handle_t* spi_device)
 
     /* Initialize registers AD7124_ADC_Control through AD7124_Filter_7. */
     for(regNr = AD7124_Status; (regNr < AD7124_Offset_0) && !(ret < 0);regNr = (regNr + 1)) {
-        if (regs[regNr].rw == AD7124_RW) {
+        if (SPI_Instance->regs[regNr].rw == AD7124_RW) {
 
-            ret = AD7124_WriteRegister(regs[regNr]);
+            ret = AD7124_WriteRegister(SPI_Instance->regs[regNr], SPI_Instance);
             if (ret < 0)
                 break;
         }
 
         /* Get CRC State and device SPI interface settings */
         if (regNr == AD7124_Error_En) {
-            AD7124_UpdateDevSpiSettings();
+            AD7124_UpdateDevSpiSettings(SPI_Instance);
         }
     }
 
     return ret;
 }
 
-uint8_t AD7124_SPI_Read(uint8_t *data, uint8_t bytes_number)
+uint8_t AD7124_SPI_Read(uint8_t *data, uint8_t bytes_number,CN0391_instance_t* SPI_Instance)
 {
 	//to change for arduino
    if(convFlag == 0)
-      SPI_Read(spidev, data, bytes_number);
+      SPI_Read(SPI_Instance->dev, data, bytes_number);
    else
-      SPI_Read(spidev, data, bytes_number);
+      SPI_Read(SPI_Instance->dev, data, bytes_number);
 
     return bytes_number;
 }
 
-uint8_t AD7124_SPI_Write(uint8_t *data, uint8_t bytes_number)
+uint8_t AD7124_SPI_Write(uint8_t *data, uint8_t bytes_number,CN0391_instance_t* SPI_Instance)
 {
 	//to change for arduino
    if(convFlag == 0)
-      SPI_Write(spidev, data, bytes_number);
+      SPI_Write(SPI_Instance->dev, data, bytes_number);
    else
-      SPI_Write(spidev, data, bytes_number);
+      SPI_Write(SPI_Instance->dev, data, bytes_number);
 
    return bytes_number;
 

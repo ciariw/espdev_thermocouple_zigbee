@@ -19,10 +19,14 @@ uint16_t pan_id;
 #define SPI_MASTER_MISO_IO 21
 #define SPI_MASTER_SCLK_IO 22
 #define SPI_MAST_CS_IO 19
+#define SPI_MAST_CS_IO_2 18
 #define SPI_TIMEOUT_MS 2000
 #define DEVICE_ID 0
 
-
+spi_device_handle_t spidev;
+spi_device_handle_t spidev2;
+CN0391_instance_t SPI1;
+CN0391_instance_t SPI2;
 
 #define A (3.9083*0.001)
 #define B (-5.775*pow(10, -7))
@@ -66,7 +70,7 @@ void spi_PT_callback(spi_transaction_t *t)
 
 }
 
-void init_spi(spi_device_handle_t* spi, int chip_select)
+void init_spi_bus( spi_host_device_t host)
 {
     spi_bus_config_t bus_config = {
         .miso_io_num = SPI_MASTER_MISO_IO,
@@ -75,23 +79,23 @@ void init_spi(spi_device_handle_t* spi, int chip_select)
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
     };
+
+    ESP_ERROR_CHECK_WITHOUT_ABORT(spi_bus_initialize(host,&bus_config,SPI_DMA_CH_AUTO));
+}
+
+void init_spi_device(spi_host_device_t bus, spi_device_handle_t* dev, int CS)
+{
     spi_device_interface_config_t spi_device = {
         .mode = 3,
-        .spics_io_num = chip_select,
+        .spics_io_num = CS,
         .clock_speed_hz = 10000000,
         .queue_size = 4,
     };
-
-    ESP_ERROR_CHECK_WITHOUT_ABORT(spi_bus_initialize(SPI2_HOST,&bus_config,SPI_DMA_CH_AUTO));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(spi_bus_add_device(SPI2_HOST, &spi_device, spi));
-    ESP_LOGI(TAG, "SPI initialization complete \n\n");
+    ESP_ERROR_CHECK_WITHOUT_ABORT(spi_bus_add_device(bus, &spi_device, dev));
+    ESP_LOGI(TAG, "SPI Device Added  \n\n");
 }
 
-void init_items(spi_device_handle_t* spi, int chip_select)
-{
-    ESP_LOGI(TAG, "Initializing Thermo \n");
-    init_spi(spi,chip_select);
-}
+
 void print_chip_info(void)
 {
     uint32_t flash_size;
@@ -119,28 +123,34 @@ void esp_task_get_Temp_data_loop()
 {
     while(true)
     {
-        vTaskDelay(250 / portTICK_PERIOD_MS);
-        CN0391_set_data();
-        get_temp_Data(temperaturebuffer);
-        update_tc_attr(0x0000, temperaturebuffer[0]);
-        update_tc_attr(0x0001, temperaturebuffer[1]);
-        update_tc_attr(0x0002, temperaturebuffer[2]);
-        update_tc_attr(0x0003, temperaturebuffer[3]);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+        CN0391_set_data(&SPI1);
+        get_temp_Data(temperaturebuffer,&SPI1);
+    #if TEMPERATURE_MODULES == 2
+        CN0391_set_data(&SPI2);
+        get_temp_Data(temperaturebuffer+4,&SPI2);
+    #endif
+        update_tc_attr(CUSTOM_CLUSTER_ID);
     }
-
 }
 
 void esp_task_SPI_init()
 {
-    spi_device_handle_t spidev;
-    spi_device_handle_t spidev2;
-    init_items(&spidev,SPI_MAST_CS_IO);
-    CN0391_init(&spidev);
+
+    init_spi_bus(SPI2_HOST);
+
+
+    init_spi_device(SPI2_HOST, &spidev,SPI_MAST_CS_IO);
+    SPI1.dev = &spidev;
+    CN0391_init(&SPI1);
 
     #if TEMPERATURE_MODULES == 2
-    //init_items(&spidev2);
-    //CN0391_init(&spidev2);
+    SPI2.dev = &spidev2;
+    init_spi_device(SPI2_HOST,&spidev2,SPI_MAST_CS_IO_2);
+    CN0391_init(&SPI2);
+
     #endif
+
     esp_task_get_Temp_data_loop();
 
 }
